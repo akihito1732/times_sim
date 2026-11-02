@@ -1,6 +1,6 @@
 {
   "name": "タイムズカー料金シミュレーター",
-  "short_name": "タイムズ料金",
+  "short_name": "タイムズ.sim",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
