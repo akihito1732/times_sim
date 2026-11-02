@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f6b73">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="タイムズ料金">
+<title>タイムズカー料金シミュレーター</title>
+<style>
+:root{
+  --bg:#f6f7f8;--surface:#fff;--text:#1b2127;--sub:#6a737c;--line:#dfe3e7;
+  --accent:#0f6b73;--accent-text:#fff;--chip:#eceff1;--warn:#9a5b00;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#15191c;--surface:#1d2226;--text:#e8ecef;--sub:#97a1a9;--line:#2c343a;--accent:#4fb3bc;--accent-text:#0d1417;--chip:#262d32;--warn:#e0a85a;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#15191c;--surface:#1d2226;--text:#e8ecef;--sub:#97a1a9;--line:#2c343a;--accent:#4fb3bc;--accent-text:#0d1417;--chip:#262d32;--warn:#e0a85a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;line-height:1.6}
+main{max-width:520px;margin:0 auto;padding:24px 16px 40px}
+h1{font-size:1.15rem;font-weight:600;margin:0 0 16px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.label{font-size:.85rem;color:var(--sub);margin:0 0 8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:inherit;color:var(--text);background:var(--chip);border:1px solid transparent;border-radius:999px;padding:7px 16px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-text)}
+.chip:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{margin-bottom:18px}
+.field:last-child{margin-bottom:0}
+.row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+input[type=number]{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:5.2em;text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.total{font-size:2rem;font-weight:600;margin:0}
+.total small{font-size:.9rem;font-weight:400;color:var(--sub);margin-left:6px}
+.lines{margin:12px 0 0;padding:0;list-style:none}
+.lines li{padding:10px 0;border-top:1px solid var(--line)}
+.lines .top{display:flex;justify-content:space-between;gap:12px}
+.lines .note{font-size:.82rem;color:var(--sub);margin-top:2px}
+.warn{color:var(--warn);font-size:.85rem;margin:10px 0 0}
+.foot{font-size:.78rem;color:var(--sub);margin:16px 4px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>タイムズカー料金シミュレーター</h1>
+
+<section>
+  <div class="field">
+    <p class="label">クラス</p>
+    <div class="chips" id="cls">
+      <button class="chip" data-v="basic" aria-pressed="true">ベーシック</button>
+      <button class="chip" data-v="mid" aria-pressed="false">ミドル</button>
+      <button class="chip" data-v="pre" aria-pressed="false">プレミアム</button>
+    </div>
+  </div>
+  <div class="field">
+    <p class="label">プラン</p>
+    <div class="chips"><button class="chip" id="night" aria-pressed="false">ナイトパック（18時〜翌9時）</button></div>
+  </div>
+  <div class="field">
+    <p class="label">利用時間</p>
+    <div class="row">
+      <input type="number" id="h" min="0" max="24" step="1" value="3" inputmode="numeric" aria-label="時間">時間
+      <input type="number" id="m" min="0" max="59" step="15" value="0" inputmode="numeric" aria-label="分">分
+    </div>
+    <input type="range" id="tr" min="0" max="1440" step="15" value="180" aria-label="利用時間スライダー">
+  </div>
+  <div class="field">
+    <p class="label">走行距離</p>
+    <div class="row">
+      <input type="number" id="k" min="0" step="1" value="30" inputmode="numeric" aria-label="走行距離">km
+    </div>
+    <input type="range" id="kr" min="0" max="300" step="1" value="30" aria-label="走行距離スライダー">
+  </div>
+</section>
+
+<section aria-live="polite">
+  <p class="total"><span id="total">¥0</span><small>税込</small></p>
+  <ul class="lines">
+    <li><div class="top"><span>時間料金</span><span id="tf"></span></div><div class="note" id="tn"></div></li>
+    <li><div class="top"><span>距離料金</span><span id="df"></span></div><div class="note" id="dn"></div></li>
+  </ul>
+  <p class="warn" id="warn" hidden></p>
+</section>
+
+<p class="foot">金額は2025年に公開された料金表に基づく概算です。ミニマムチャージや会員ステージ特典は含みません。最新の料金は公式サイトで確認してください。利用時間は最長24時間までです。</p>
+</main>
+
+<script>
+const H=[6,12,24],MAX_MIN=1440;
+const C={
+  basic:{rate:220,caps:[4290,5500,6600,8800,9900,14300],day:5500,night:2640},
+  mid:{rate:330,caps:[6490,7700,8800,11000,13200,18700],day:6600,night:3960},
+  pre:{rate:440,caps:[8690,9900,12100,17600,20900,27500],day:7700,night:5280}
+};
+const KM_RATE=20,FREE_KM=20,NIGHT_MIN=15*60;
+const s={cls:'basic',night:false,min:180,km:30};
+const $=id=>document.getElementById(id);
+const yen=n=>'¥'+n.toLocaleString('ja-JP');
+
+function timeFee(min,c){
+  const units=Math.ceil(min/15),base=units*c.rate;
+  if(min<=0)return{fee:0,base:0,units:0,capped:false};
+  for(let i=0;i<H.length;i++){
+    if(min<=H[i]*60){const fee=Math.min(base,c.caps[i]);return{fee,base,units,capped:fee<base,tier:H[i]};}
+  }
+  return{fee:c.caps[2],base,units,capped:true,tier:24};
+}
+
+function render(src){
+  const c=C[s.cls];
+  let tf,tn;
+  if(s.night){
+    tf=c.night;tn='ナイトパックの定額料金';
+  }else{
+    const t=timeFee(s.min,c);tf=t.fee;
+    tn=t.units+'区画（15分単位）× '+yen(c.rate)+' = '+yen(t.base);
+    if(t.capped)tn+=t.over?'　→ 72時間超の最大料金で計算':'　→ '+t.tier+'時間までの最大料金を適用';
+  }
+  let df,dn;
+  if(s.night){
+    df=s.km*KM_RATE;dn=s.km+'km × '+yen(KM_RATE)+'（ナイトパックは全走行距離が対象）';
+  }else{
+    const bill=Math.max(0,s.km-FREE_KM);
+    df=bill*KM_RATE;dn=s.km<=FREE_KM?FREE_KM+'km以内のため無料':'('+s.km+' − '+FREE_KM+')km × '+yen(KM_RATE);
+  }
+  $('total').textContent=yen(tf+df);
+  $('tf').textContent=yen(tf);$('tn').textContent=tn;
+  $('df').textContent=yen(df);$('dn').textContent=dn;
+  const w=$('warn');
+  if(s.night&&s.min>NIGHT_MIN){w.hidden=false;w.textContent='ナイトパックは18時〜翌9時（15時間）以内の利用が対象です。';}
+  else w.hidden=true;
+  document.querySelectorAll('#cls .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===s.cls));
+  $('night').setAttribute('aria-pressed',s.night);
+  if(src!=='h'&&document.activeElement!==$('h'))$('h').value=Math.floor(s.min/60);
+  if(src!=='m'&&document.activeElement!==$('m'))$('m').value=s.min%60;
+  if(src!=='tr')$('tr').value=Math.min(s.min,MAX_MIN);
+  if(src!=='k'&&document.activeElement!==$('k'))$('k').value=s.km;
+  if(src!=='kr')$('kr').value=Math.min(s.km,300);
+}
+const num=v=>Math.max(0,Math.floor(Number(v))||0);
+function fromHM(src){s.min=Math.min(MAX_MIN,num($('h').value)*60+num($('m').value));render(src);}
+$('h').oninput=()=>fromHM('h');
+$('m').oninput=()=>fromHM('m');
+$('tr').oninput=()=>{s.min=num($('tr').value);render('tr');};
+$('k').oninput=()=>{s.km=num($('k').value);render('k');};
+$('kr').oninput=()=>{s.km=num($('kr').value);render('kr');};
+$('night').onclick=()=>{s.night=!s.night;render();};
+document.querySelectorAll('#cls .chip').forEach(b=>b.onclick=()=>{s.cls=b.dataset.v;render();});
+['h','m','k'].forEach(id=>$(id).addEventListener('blur',()=>render()));
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+render();
+</script>
+</body>
+</html>
